@@ -4,3 +4,4 @@ pub mod errors;
 pub mod github;
 pub mod index;
 pub mod search;
+pub mod tui;
