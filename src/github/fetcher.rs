@@ -262,7 +262,16 @@ impl GitHubFetcher {
             .context("Failed to fetch PR diff")?;
 
         if !output.status.success() {
-            anyhow::bail!("Failed to fetch diff for PR #{pr_number}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stderr_trimmed = stderr.trim();
+
+            if stderr_trimmed.is_empty() {
+                anyhow::bail!("Failed to fetch diff for PR #{pr_number}");
+            } else {
+                anyhow::bail!(
+                    "Failed to fetch diff for PR #{pr_number}: {stderr_trimmed}"
+                );
+            }
         }
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
