@@ -1,0 +1,58 @@
+[package]
+name = "pr-search"
+version = "0.1.0"
+edition = "2021"
+description = "Semantic search for GitHub Pull Requests"
+license = "MIT"
+repository = "https://github.com/yanxue06/pr-search"
+
+[dependencies]
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+bincode = "1.3"
+
+# Git
+git2 = "0.20"
+
+# Embedding / ML
+ort = { version = "2.0.0-rc.10", features = ["download-binaries"] }
+ndarray = "0.16"
+tokenizers = "0.21"
+
+# GitHub API
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Search
+chrono = { version = "0.4", features = ["serde"] }
+
+# Progress & logging
+indicatif = "0.17"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+directories = "6.0"
+open = "5.3"
+
+[dev-dependencies]
+tempfile = "3.14"
+assert_cmd = "2.0"
+predicates = "3.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = 3
