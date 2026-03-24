@@ -48,15 +48,21 @@ pub fn format_error_chain(err: &anyhow::Error) -> String {
         ));
     }
 
-    // Check if the root cause implements DomainError
-    if let Some(domain_err) = err.downcast_ref::<GitHubError>() {
-        append_domain_info(&mut output, domain_err);
-    } else if let Some(domain_err) = err.downcast_ref::<EmbeddingError>() {
-        append_domain_info(&mut output, domain_err);
-    } else if let Some(domain_err) = err.downcast_ref::<IndexError>() {
-        append_domain_info(&mut output, domain_err);
-    } else if let Some(domain_err) = err.downcast_ref::<SearchError>() {
-        append_domain_info(&mut output, domain_err);
+    // Check if any error in the chain implements DomainError
+    for cause in err.chain() {
+        if let Some(domain_err) = cause.downcast_ref::<GitHubError>() {
+            append_domain_info(&mut output, domain_err);
+            break;
+        } else if let Some(domain_err) = cause.downcast_ref::<EmbeddingError>() {
+            append_domain_info(&mut output, domain_err);
+            break;
+        } else if let Some(domain_err) = cause.downcast_ref::<IndexError>() {
+            append_domain_info(&mut output, domain_err);
+            break;
+        } else if let Some(domain_err) = cause.downcast_ref::<SearchError>() {
+            append_domain_info(&mut output, domain_err);
+            break;
+        }
     }
 
     output
