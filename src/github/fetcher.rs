@@ -141,7 +141,9 @@ impl GitHubFetcher {
 
     /// Parse a single PR from the gh JSON output.
     fn parse_pr(&self, raw: &serde_json::Value, with_diffs: bool) -> Result<PrData> {
-        let number = raw["number"].as_u64().unwrap_or(0);
+        let number = raw["number"]
+            .as_u64()
+            .ok_or_else(|| GitHubError::ParseError("Missing or invalid PR number".to_string()))?;
 
         let state = match raw["state"].as_str().unwrap_or("") {
             "OPEN" => PrState::Open,
