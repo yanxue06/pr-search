@@ -27,7 +27,8 @@ impl<'a> IndexBuilder<'a> {
     /// Incrementally update an existing index with new PRs.
     /// Only PRs not already in the index will be embedded and added.
     pub fn update(&mut self, existing: &mut SemanticIndex, new_prs: &[PrData]) -> Result<usize> {
-        let existing_numbers = existing.indexed_pr_numbers();
+        let existing_numbers: std::collections::HashSet<u64> =
+            existing.indexed_pr_numbers().into_iter().collect();
         let prs_to_add: Vec<&PrData> = new_prs
             .iter()
             .filter(|pr| !existing_numbers.contains(&pr.number))

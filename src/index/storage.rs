@@ -27,7 +27,8 @@ impl IndexStorage {
             let contents = std::fs::read_to_string(&git_dir).context("Failed to read .git file")?;
             let gitdir = contents
                 .strip_prefix("gitdir: ")
-                .and_then(|s| s.strip_suffix('\n'))
+                .map(|s| s.trim_end())
+                .filter(|s| !s.is_empty())
                 .ok_or(IndexError::NotInRepo)?;
             PathBuf::from(gitdir)
         } else if git_dir.is_dir() {

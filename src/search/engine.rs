@@ -76,13 +76,6 @@ impl SearchEngine {
         // Truncate to requested number
         results.truncate(num_results);
 
-        if results.is_empty() {
-            return Err(SearchError::NoResults {
-                query: String::from("<embedding>"),
-            }
-            .into());
-        }
-
         Ok(results)
     }
 }

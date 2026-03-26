@@ -25,7 +25,10 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
     // Set cursor position when input is focused
     if app.input_focused {
-        frame.set_cursor_position((chunks[0].x + 1 + app.cursor_pos as u16, chunks[0].y + 1));
+        // Count display width (characters, not bytes) for cursor positioning
+        let display_pos = app.query[..app.cursor_pos].chars().count() as u16;
+        let cursor_x = chunks[0].x.saturating_add(1).saturating_add(display_pos);
+        frame.set_cursor_position((cursor_x, chunks[0].y + 1));
     }
 }
 
