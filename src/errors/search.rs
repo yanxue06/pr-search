@@ -10,6 +10,9 @@ pub enum SearchError {
 
     #[error("Invalid date filter: {message}")]
     InvalidDateFilter { message: String },
+
+    #[error("Invalid state filter: {message}")]
+    InvalidStateFilter { message: String },
 }
 
 impl DomainError for SearchError {
@@ -18,6 +21,7 @@ impl DomainError for SearchError {
             Self::EmptyQuery => "Provide a search query, e.g.: pr-search search \"fix auth bug\"",
             Self::NoResults { .. } => "Try different search terms, or broaden your filters",
             Self::InvalidDateFilter { .. } => "Use ISO 8601 format: YYYY-MM-DD (e.g., 2026-01-15)",
+            Self::InvalidStateFilter { .. } => "State must be one of: open, closed, merged",
         }
     }
 
@@ -26,6 +30,7 @@ impl DomainError for SearchError {
             Self::EmptyQuery => "E4001",
             Self::NoResults { .. } => "E4002",
             Self::InvalidDateFilter { .. } => "E4003",
+            Self::InvalidStateFilter { .. } => "E4004",
         }
     }
 }
@@ -43,6 +48,9 @@ mod tests {
             },
             SearchError::InvalidDateFilter {
                 message: "bad date".into(),
+            },
+            SearchError::InvalidStateFilter {
+                message: "bad state".into(),
             },
         ];
 

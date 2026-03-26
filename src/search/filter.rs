@@ -77,9 +77,9 @@ impl SearchFilter {
             match state.to_lowercase().as_str() {
                 "open" | "closed" | "merged" => {}
                 _ => {
-                    return Err(SearchError::InvalidDateFilter {
+                    return Err(SearchError::InvalidStateFilter {
                         message: format!(
-                            "Invalid state filter: '{state}'. Must be open, closed, or merged"
+                            "Invalid state: '{state}'. Must be open, closed, or merged"
                         ),
                     });
                 }

@@ -117,22 +117,38 @@ impl App {
         match key {
             KeyCode::Char(c) => {
                 self.query.insert(self.cursor_pos, c);
-                self.cursor_pos += 1;
+                self.cursor_pos += c.len_utf8();
             }
             KeyCode::Backspace => {
                 if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                    self.query.remove(self.cursor_pos);
+                    // Find the previous character boundary
+                    let prev = self.query[..self.cursor_pos]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
+                    self.query.remove(prev);
+                    self.cursor_pos = prev;
                 }
             }
             KeyCode::Left => {
                 if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
+                    // Move to previous character boundary
+                    self.cursor_pos = self.query[..self.cursor_pos]
+                        .char_indices()
+                        .next_back()
+                        .map(|(i, _)| i)
+                        .unwrap_or(0);
                 }
             }
             KeyCode::Right => {
                 if self.cursor_pos < self.query.len() {
-                    self.cursor_pos += 1;
+                    // Move to next character boundary
+                    self.cursor_pos = self.query[self.cursor_pos..]
+                        .char_indices()
+                        .nth(1)
+                        .map(|(i, _)| self.cursor_pos + i)
+                        .unwrap_or(self.query.len());
                 }
             }
             KeyCode::Home => {

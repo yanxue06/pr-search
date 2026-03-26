@@ -96,7 +96,10 @@ impl ModelManager {
                 message: e.to_string(),
             })?;
 
-        std::fs::write(dest, &bytes).context("Failed to write model file to disk")?;
+        // Write to temp file then rename for atomicity (avoids corrupt files on interrupted downloads)
+        let tmp_dest = dest.with_extension("tmp");
+        std::fs::write(&tmp_dest, &bytes).context("Failed to write model file to disk")?;
+        std::fs::rename(&tmp_dest, dest).context("Failed to finalize model file")?;
 
         tracing::info!(
             path = %dest.display(),
