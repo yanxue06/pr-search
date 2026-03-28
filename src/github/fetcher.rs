@@ -143,7 +143,9 @@ impl GitHubFetcher {
     fn parse_pr(&self, raw: &serde_json::Value, with_diffs: bool) -> Result<PrData> {
         let number = raw["number"]
             .as_u64()
-            .ok_or_else(|| GitHubError::ParseError("Missing or invalid PR number".to_string()))?;
+            .ok_or_else(|| GitHubError::ParseError {
+                message: "Missing or invalid PR number".to_string(),
+            })?;
 
         let state = match raw["state"].as_str().unwrap_or("") {
             "OPEN" => PrState::Open,
@@ -270,9 +272,7 @@ impl GitHubFetcher {
             if stderr_trimmed.is_empty() {
                 anyhow::bail!("Failed to fetch diff for PR #{pr_number}");
             } else {
-                anyhow::bail!(
-                    "Failed to fetch diff for PR #{pr_number}: {stderr_trimmed}"
-                );
+                anyhow::bail!("Failed to fetch diff for PR #{pr_number}: {stderr_trimmed}");
             }
         }
 
@@ -392,5 +392,207 @@ mod tests {
         assert_eq!(pr.labels, vec!["WIP", "feature"]);
         assert!(pr.merged_at.is_none());
         assert!(pr.closed_at.is_none());
+    }
+
+    #[test]
+    fn test_parse_pr_missing_number_returns_error() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "title": "No number field",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/0"
+        });
+
+        let result = fetcher.parse_pr(&raw, false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.downcast_ref::<GitHubError>().is_some(),
+            "Error should be a GitHubError"
+        );
+    }
+
+    #[test]
+    fn test_parse_pr_null_number_returns_error() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": null,
+            "title": "Null number",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/0"
+        });
+
+        let result = fetcher.parse_pr(&raw, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_pr_string_number_returns_error() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": "not_a_number",
+            "title": "String number",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/0"
+        });
+
+        let result = fetcher.parse_pr(&raw, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_pr_unknown_state_defaults_to_open() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 10,
+            "title": "Unknown state PR",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "DRAFT",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/10"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.state, PrState::Open);
+    }
+
+    #[test]
+    fn test_parse_pr_missing_optional_fields() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 5,
+            "state": "OPEN",
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/5"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.number, 5);
+        assert_eq!(pr.title, "");
+        assert_eq!(pr.body, "");
+        assert_eq!(pr.author, "unknown");
+        assert!(pr.labels.is_empty());
+    }
+
+    #[test]
+    fn test_parse_pr_closed_with_merged_at_is_merged() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 6,
+            "title": "Closed but actually merged",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "CLOSED",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-02T00:00:00Z",
+            "mergedAt": "2025-01-02T00:00:00Z",
+            "closedAt": "2025-01-02T00:00:00Z",
+            "url": "https://github.com/o/r/pull/6"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.state, PrState::Merged);
+        assert!(pr.merged_at.is_some());
+    }
+
+    #[test]
+    fn test_parse_pr_explicit_merged_state() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 7,
+            "title": "Explicitly merged",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "MERGED",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-02T00:00:00Z",
+            "mergedAt": "2025-01-02T00:00:00Z",
+            "url": "https://github.com/o/r/pull/7"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.state, PrState::Merged);
+    }
+
+    #[test]
+    fn test_parse_pr_repo_field_set_correctly() {
+        let fetcher = GitHubFetcher::new("myorg/myrepo").unwrap();
+        let raw = serde_json::json!({
+            "number": 1,
+            "title": "test",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/myorg/myrepo/pull/1"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.repo, "myorg/myrepo");
+    }
+
+    #[test]
+    fn test_parse_pr_multiple_labels() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 8,
+            "title": "Multi label",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [
+                {"name": "bug"},
+                {"name": "priority:high"},
+                {"name": "area:backend"}
+            ],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/8"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert_eq!(pr.labels, vec!["bug", "priority:high", "area:backend"]);
+    }
+
+    #[test]
+    fn test_parse_pr_empty_labels_array() {
+        let fetcher = GitHubFetcher::new("o/r").unwrap();
+        let raw = serde_json::json!({
+            "number": 9,
+            "title": "No labels",
+            "body": "",
+            "author": {"login": "user"},
+            "state": "OPEN",
+            "labels": [],
+            "createdAt": "2025-01-01T00:00:00Z",
+            "updatedAt": "2025-01-01T00:00:00Z",
+            "url": "https://github.com/o/r/pull/9"
+        });
+
+        let pr = fetcher.parse_pr(&raw, false).unwrap();
+        assert!(pr.labels.is_empty());
     }
 }
